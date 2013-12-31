@@ -34,8 +34,8 @@ $.fn = {
 	 * $().css() 
 	 * for example:
 	 * $('#content').css('background-color') // get property
-	 * $('p').css('color': 'red')	// set property
-	 * $('p').css('color': '')	//remove property
+	 * $('p').css('color', 'red')	// set property
+	 * $('p').css('color', '')	//remove property
 	 */
 	,css: function(property, value) {
 		// get property
