@@ -113,13 +113,17 @@ var Misa = (function(window) {
 		}
 		/*
 		 * attribute operation
+		 * $('#p').attr('class')	//get className of an element
 		 * $('p span').attr('class', 'highlight')	//set single attribute
 		 */
 		,attr: function(name, value) {
-			this.each(function() {
+			// get attribute
+			if(!value && this.length == 1) {
+				return this[0].getAttribute(name);
+			}
+			return this.each(function() {
 				this.setAttribute(name, value);
 			})
-			return this;
 		}
 		/*
 		 * set innerHTML
@@ -180,7 +184,115 @@ var Misa = (function(window) {
 		})(adjacencyOperators[key])
 	}
 	
+	// create Event
+	$.Event = function(type) {
+		var event = document.createEvent('Events');
+		event.initEvent(type, true, true);
+		return event;
+	}
+	
 	return $
 })(window)
 
 window.$ = Misa
+	
+/*
+ * Event
+ * $().on 绑定事件
+ * $().off 解绑事件
+ */
+;(function($) {
+	var _id = 1,	//每个element的标示符
+	handlers = {},	//事件管理对象
+	customEvent = ['swipe'];	//自定义事件	
+
+	//取element的唯一标示符，如果没有，则设置一个并返回
+	function mid(element) {
+		return element._id || (element._id = _id++)
+	}
+
+	/*
+	 * $().on 绑定事件
+	 * $('#btn').on('mousedown touchstart', callback)	//events可以为多个事件，用空格分隔 
+	 * $('btn').on('click.first', callback)		//可为事件指定命名
+	 */
+	$.fn.on = function(events, callback) {
+		var _ = this
+		return _.each(function(el) {
+			add(el, events, callback)
+		})
+	}
+	
+	/*
+	 * $().off 解绑事件
+	 * 只支持单个事件
+	 * $('#btn').off('click.first')		//指定命名时，无需指定callback
+	 */
+	$.fn.off = function(event, callback) {
+		this.each(function(el) {
+			remove(el, event, callback)
+		})
+	}
+	
+	//用于触发事件
+	$.fn.trigger = function(event) {
+		var e = $.Event(event);	 //创建事件
+		return this.each(function(el) {
+			el.dispatchEvent(e);
+		})
+	}
+	
+	//查找指定handler
+	function finHandlers(id, event, fn) {
+		event = parse(event);
+		if(event.ns) {
+			return handlers[id].filter(function(handler) {
+				return (handler.e == event.e) && (handler.ns == event.ns)
+			})
+		}
+		return handlers[id].filter(function(handler) {
+			return (handler.e == event.e) && (!fn || handler.fn == fn)
+		});
+	}
+	
+	/*
+	 * 格式化事件对象，返回事件命名空间
+	 * parse('click.first') => {e: 'click', ns: 'first'}
+	 */
+	function parse(event) {
+		var parts = ('' + event).split('.');
+		return {
+			e: parts[0],
+			ns: parts[1]
+		}
+	}
+	//add events
+	function add(element, events, fn) {
+		var id = mid(element), handler = {},
+		set = (handlers[id] || (handlers[id] = []));
+		//对多个事件用空格分组，进行遍历
+		events.split(/\s/).forEach(function(event) {
+			var handler = parse(event);
+			handler.fn = fn;
+			handler.proxy = function(e) {
+				//取得捕获事件的元素
+				var currentTarget = e.currentTarget;
+				var result = fn.apply(element, [e,currentTarget]);
+				if(result === false) e.preventDefault(),e.stopPropagation();
+				return result;
+			}
+			handler.i = set.length;
+			set.push(handler);
+			element.addEventListener(handler.e, handler.proxy, false);
+		})
+	}
+	
+	//remove event
+	function remove(element, event, fn) {
+		var id = mid(element);
+		finHandlers(id, event, fn).forEach(function(handler) {
+			delete handlers[id][handler.i];
+			element.removeEventListener(handler.e, handler.proxy, false)
+		})
+	}
+})(Misa)
